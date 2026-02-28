@@ -1,14 +1,32 @@
-from flask import Flask, redirect, request, session, url_for, send_from_directory
-import requests
-from local_settings import CLIENT_ID, CLIENT_SECRET
+from flask import Flask, request, redirect, session, send_from_directory
+from flask_bcrypt import Bcrypt
+import sqlite3
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
 
+bcrypt = Bcrypt(app)
 
-GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
-GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
-GITHUB_USER_API = "https://api.github.com/user"
+DATABASE = "users.db"
+
+
+def init_db():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
 
 
 @app.route("/")
@@ -16,41 +34,54 @@ def index():
     return send_from_directory("../frontend", "index.html")
 
 
-@app.route("/login")
+@app.route("/register", methods=["POST"])
+def register():
+
+    username = request.form["username"]
+    password = request.form["password"]
+
+    hashed = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, hashed)
+        )
+        conn.commit()
+    except:
+        return "Usuário já existe"
+
+    conn.close()
+
+    return "Usuário criado com sucesso"
+
+@app.route("/login", methods=["POST"])
 def login():
-    return redirect(f"{GITHUB_AUTH_URL}?client_id={CLIENT_ID}")
 
+    username = request.form["username"]
+    password = request.form["password"]
 
-@app.route("/callback")
-def callback():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
 
-    code = request.args.get("code")
-
-    token_response = requests.post(
-        GITHUB_TOKEN_URL,
-        headers={"Accept": "application/json"},
-        data={
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
-            "code": code
-        },
+    cursor.execute(
+        "SELECT password FROM users WHERE username=?",
+        (username,)
     )
 
-    access_token = token_response.json().get("access_token")
+    user = cursor.fetchone()
 
-    user_response = requests.get(
-        GITHUB_USER_API,
-        headers={"Authorization": f"token {access_token}"}
-    )
+    conn.close()
 
-    user = user_response.json()
+    if user and bcrypt.check_password_hash(user[0], password):
 
-    session["user"] = {
-        "login": user["login"],
-        "avatar": user["avatar_url"]
-    }
+        session["user"] = username
+        return redirect("/dashboard")
 
-    return redirect("/dashboard")
+    return "Login inválido"
 
 
 @app.route("/dashboard")
@@ -59,18 +90,18 @@ def dashboard():
     if "user" not in session:
         return redirect("/")
 
-    user = session["user"]
+    username = session["user"]
 
     return f"""
-    <h1>Bem-vindo {user['login']}</h1>
-    <img src="{user['avatar']}" width="120">
-    <br><br>
+    <h1>Bem-vindo {username}</h1>
+    <br>
     <a href="/logout">Logout</a>
     """
 
 
 @app.route("/logout")
 def logout():
+
     session.clear()
     return redirect("/")
 
