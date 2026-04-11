@@ -1,39 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Activity, ArrowLeft, Search, Filter, FileText, Calendar } from 'lucide-react';
 
-const allAnalyses = [
-  { id: '1', patient: 'Maria Silva', cpf: '123.456.789-00', condition: 'Dermatologia', model: 'SkinNet v2', confidence: '96%', date: '2026-04-10', time: '14:30', status: 'completed' },
-  { id: '2', patient: 'João Santos', cpf: '987.654.321-00', condition: 'Pneumologia', model: 'ChestX-Ray AI', confidence: '89%', date: '2026-04-10', time: '13:15', status: 'completed' },
-  { id: '3', patient: 'Ana Costa', cpf: '456.789.123-00', condition: 'Oftalmologia', model: 'RetinalScan', confidence: '92%', date: '2026-04-10', time: '11:45', status: 'completed' },
-  { id: '4', patient: 'Pedro Oliveira', cpf: '321.654.987-00', condition: 'Cardiologia', model: 'CardioAI', confidence: '88%', date: '2026-04-09', time: '16:20', status: 'completed' },
-  { id: '5', patient: 'Carla Mendes', cpf: '789.123.456-00', condition: 'Ortopedia', model: 'BoneFracture AI', confidence: '95%', date: '2026-04-09', time: '10:30', status: 'completed' },
-  { id: '6', patient: 'Lucas Ferreira', cpf: '654.321.789-00', condition: 'Neurologia', model: 'NeuralScan', confidence: '91%', date: '2026-04-08', time: '15:45', status: 'completed' },
-  { id: '7', patient: 'Juliana Rocha', cpf: '159.753.486-00', condition: 'Dermatologia', model: 'SkinNet v2', confidence: '93%', date: '2026-04-08', time: '09:20', status: 'completed' },
-  { id: '8', patient: 'Roberto Lima', cpf: '753.159.852-00', condition: 'Pneumologia', model: 'ChestX-Ray AI', confidence: '87%', date: '2026-04-07', time: '14:00', status: 'completed' }
-];
+interface AnalysisItem {
+  id: number;
+  patient_name: string;
+  patient_cpf: string;
+  model_category: string;
+  model_name: string;
+  confidence: number;
+  created_at: string;
+  status: string;
+}
 
 export function AllAnalyses() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState('all');
+  const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAnalyses = () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (filterCondition !== 'all') params.set('condition', filterCondition);
+    const qs = params.toString();
+
+    apiFetch(`/analyses${qs ? `?${qs}` : ''}`)
+      .then(setAnalyses)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchAnalyses();
+  }, [filterCondition]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchAnalyses, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const handleBack = () => {
     navigate(user?.type === 'doctor' ? '/doctor' : '/patient');
   };
 
-  const filteredAnalyses = allAnalyses.filter(analysis => {
-    const matchesSearch = analysis.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          analysis.cpf.includes(searchTerm);
-    const matchesFilter = filterCondition === 'all' || analysis.condition === filterCondition;
-    return matchesSearch && matchesFilter;
-  });
-
   const conditions = ['all', 'Dermatologia', 'Pneumologia', 'Oftalmologia', 'Cardiologia', 'Ortopedia', 'Neurologia'];
+
+  const formatDateTime = (iso: string) => {
+    const d = new Date(iso);
+    return {
+      date: d.toLocaleDateString('pt-BR'),
+      time: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,42 +132,45 @@ export function AllAnalyses() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAnalyses.map((analysis) => (
-                  <tr key={analysis.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{analysis.patient}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{analysis.cpf}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        {analysis.condition}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{analysis.model}</td>
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-green-600">{analysis.confidence}</span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>{analysis.date} às {analysis.time}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Button
-                        size="sm"
-                        onClick={() => navigate(`/analysis/${analysis.id}`)}
-                      >
-                        Ver detalhes
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {analyses.map((analysis) => {
+                  const { date, time } = formatDateTime(analysis.created_at);
+                  return (
+                    <tr key={analysis.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{analysis.patient_name}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{analysis.patient_cpf || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          {analysis.model_category}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{analysis.model_name}</td>
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-green-600">{analysis.confidence}%</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{date} às {time}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/analysis/${analysis.id}`)}
+                        >
+                          Ver detalhes
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {filteredAnalyses.length === 0 && (
+          {!loading && analyses.length === 0 && (
             <div className="text-center py-12">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">Nenhuma análise encontrada</p>
@@ -151,7 +180,7 @@ export function AllAnalyses() {
 
         <div className="mt-6 flex justify-between items-center">
           <p className="text-sm text-gray-600">
-            Mostrando {filteredAnalyses.length} de {allAnalyses.length} análises
+            Mostrando {analyses.length} análise{analyses.length !== 1 ? 's' : ''}
           </p>
         </div>
       </main>

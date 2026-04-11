@@ -1,29 +1,56 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Activity, Users, FileText, TrendingUp, LogOut, Brain } from 'lucide-react';
+
+interface DashboardStats {
+  active_patients: number;
+  analyses_today: number;
+  average_accuracy: string;
+  active_models: number;
+}
+
+interface RecentAnalysis {
+  id: number;
+  patient_name: string;
+  model_category: string;
+  model_name: string;
+  confidence: number;
+  created_at: string;
+}
 
 export function DoctorDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([]);
+
+  useEffect(() => {
+    apiFetch('/dashboard/stats').then(setStats).catch(console.error);
+    apiFetch('/analyses?limit=3').then(setRecentAnalyses).catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const stats = [
-    { label: 'Pacientes ativos', value: '48', icon: Users, color: 'bg-blue-500' },
-    { label: 'Análises hoje', value: '12', icon: FileText, color: 'bg-green-500' },
-    { label: 'Precisão média', value: '94%', icon: TrendingUp, color: 'bg-purple-500' },
-    { label: 'Modelos ativos', value: '6', icon: Brain, color: 'bg-orange-500' }
+  const statCards = [
+    { label: 'Pacientes ativos', value: stats?.active_patients ?? '—', icon: Users, color: 'bg-blue-500' },
+    { label: 'Análises hoje', value: stats?.analyses_today ?? '—', icon: FileText, color: 'bg-green-500' },
+    { label: 'Precisão média', value: stats?.average_accuracy ?? '—', icon: TrendingUp, color: 'bg-purple-500' },
+    { label: 'Modelos ativos', value: stats?.active_models ?? '—', icon: Brain, color: 'bg-orange-500' }
   ];
 
-  const recentAnalyses = [
-    { patient: 'Maria Silva', condition: 'Dermatologia', model: 'SkinNet v2', confidence: '96%', date: 'Hoje, 14:30' },
-    { patient: 'João Santos', condition: 'Pneumologia', model: 'ChestX-Ray AI', confidence: '89%', date: 'Hoje, 13:15' },
-    { patient: 'Ana Costa', condition: 'Oftalmologia', model: 'RetinalScan', confidence: '92%', date: 'Hoje, 11:45' }
-  ];
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return isToday ? `Hoje, ${time}` : `${d.toLocaleDateString('pt-BR')}, ${time}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -58,7 +85,7 @@ export function DoctorDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => (
+          {statCards.map((stat) => (
             <div key={stat.label} className="bg-white rounded-xl p-6 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className={`${stat.color} w-12 h-12 rounded-lg flex items-center justify-center`}>
@@ -77,17 +104,20 @@ export function DoctorDashboard() {
             <Button variant="outline" size="sm" onClick={() => navigate('/all-analyses')}>Ver todas</Button>
           </div>
           <div className="space-y-4">
-            {recentAnalyses.map((analysis, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            {recentAnalyses.length === 0 && (
+              <p className="text-gray-500 text-center py-4">Nenhuma análise realizada ainda</p>
+            )}
+            {recentAnalyses.map((analysis) => (
+              <div key={analysis.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">{analysis.patient}</div>
-                  <div className="text-sm text-gray-600">{analysis.condition} · {analysis.model}</div>
+                  <div className="font-medium text-gray-900">{analysis.patient_name}</div>
+                  <div className="text-sm text-gray-600">{analysis.model_category} · {analysis.model_name}</div>
                 </div>
                 <div className="text-right mr-6">
-                  <div className="font-semibold text-green-600">{analysis.confidence}</div>
-                  <div className="text-sm text-gray-500">{analysis.date}</div>
+                  <div className="font-semibold text-green-600">{analysis.confidence}%</div>
+                  <div className="text-sm text-gray-500">{formatDate(analysis.created_at)}</div>
                 </div>
-                <Button size="sm" onClick={() => navigate('/analysis/1')}>Ver detalhes</Button>
+                <Button size="sm" onClick={() => navigate(`/analysis/${analysis.id}`)}>Ver detalhes</Button>
               </div>
             ))}
           </div>
