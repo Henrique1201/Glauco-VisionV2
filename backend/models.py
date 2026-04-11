@@ -16,6 +16,22 @@ class User(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     analyses = relationship("Analysis", back_populates="user")
+    patients = relationship("Patient", back_populates="doctor")
+
+
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    cpf = Column(String(20), unique=True, nullable=False, index=True)
+    age = Column(String(20), nullable=True)
+    phone = Column(String(20), nullable=True)
+    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    doctor = relationship("User", back_populates="patients")
+    analyses = relationship("Analysis", back_populates="patient")
 
 
 class AIModel(Base):
@@ -37,9 +53,7 @@ class Analysis(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    patient_name = Column(String(255), nullable=False)
-    patient_cpf = Column(String(20), nullable=True)
-    patient_age = Column(String(20), nullable=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
     model_id = Column(String(50), ForeignKey("ai_models.id"), nullable=False)
     image_path = Column(String(500), nullable=True)
     confidence = Column(Float, nullable=False)
@@ -50,4 +64,5 @@ class Analysis(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="analyses")
+    patient = relationship("Patient", back_populates="analyses")
     model = relationship("AIModel", back_populates="analyses")

@@ -33,6 +33,28 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+# ── Patients ────────────────────────────────────────────────────
+
+class PatientCreate(BaseModel):
+    name: str
+    cpf: str
+    age: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class PatientResponse(BaseModel):
+    id: int
+    name: str
+    cpf: str
+    age: Optional[str] = None
+    phone: Optional[str] = None
+    doctor_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ── AI Models ───────────────────────────────────────────────────
 
 class ModelResponse(BaseModel):
@@ -59,7 +81,8 @@ class FindingSchema(BaseModel):
 class AnalysisResponse(BaseModel):
     id: int
     user_id: int
-    patient_name: str
+    patient_id: Optional[int] = None
+    patient_name: Optional[str] = None
     patient_cpf: Optional[str] = None
     patient_age: Optional[str] = None
     model_id: str

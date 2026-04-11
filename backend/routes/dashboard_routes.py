@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database import get_db
-from models import Analysis, AIModel, User
+from models import Analysis, AIModel, Patient, User
 from schemas import DashboardStats
 from auth import get_current_user
 
@@ -17,12 +17,8 @@ def get_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Total de pacientes únicos com análises
-    active_patients = (
-        db.query(func.count(func.distinct(Analysis.patient_cpf)))
-        .filter(Analysis.patient_cpf.isnot(None))
-        .scalar()
-    ) or 0
+    # Total de pacientes cadastrados
+    active_patients = db.query(func.count(Patient.id)).scalar() or 0
 
     # Análises realizadas hoje
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -33,12 +29,10 @@ def get_stats(
     ) or 0
 
     # Precisão média das análises
-    avg_confidence = (
-        db.query(func.avg(Analysis.confidence)).scalar()
-    )
+    avg_confidence = db.query(func.avg(Analysis.confidence)).scalar()
     average_accuracy = f"{round(avg_confidence, 0):.0f}%" if avg_confidence else "0%"
 
-    # Modelos ativos (que possuem ao menos 1 análise)
+    # Modelos ativos
     active_models = db.query(AIModel).count()
 
     return DashboardStats(

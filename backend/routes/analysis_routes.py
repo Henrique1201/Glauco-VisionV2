@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Q
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Analysis, AIModel, User
+from models import Analysis, AIModel, Patient, User
 from schemas import AnalysisResponse, FindingSchema
 from auth import get_current_user
 
@@ -79,12 +79,14 @@ def _generate_findings(category: str) -> list[dict]:
 
 def _build_analysis_response(analysis: Analysis, db: Session) -> dict:
     model = db.query(AIModel).filter(AIModel.id == analysis.model_id).first()
+    patient = db.query(Patient).filter(Patient.id == analysis.patient_id).first() if analysis.patient_id else None
     data = {
         "id": analysis.id,
         "user_id": analysis.user_id,
-        "patient_name": analysis.patient_name,
-        "patient_cpf": analysis.patient_cpf,
-        "patient_age": analysis.patient_age,
+        "patient_id": analysis.patient_id,
+        "patient_name": patient.name if patient else "Paciente",
+        "patient_cpf": patient.cpf if patient else None,
+        "patient_age": patient.age if patient else None,
         "model_id": analysis.model_id,
         "model_name": model.name if model else None,
         "model_category": model.category if model else None,
@@ -116,6 +118,21 @@ async def create_analysis(
     if not ai_model:
         raise HTTPException(status_code=404, detail="Modelo não encontrado")
 
+    # Buscar ou criar paciente
+    patient = None
+    if patient_cpf:
+        patient = db.query(Patient).filter(Patient.cpf == patient_cpf).first()
+        if not patient:
+            patient = Patient(
+                name=patient_name,
+                cpf=patient_cpf,
+                age=patient_age,
+                doctor_id=current_user.id,
+            )
+            db.add(patient)
+            db.commit()
+            db.refresh(patient)
+
     # Salvar imagem
     ext = os.path.splitext(image.filename or "img.png")[1]
     filename = f"{uuid.uuid4().hex}{ext}"
@@ -137,9 +154,7 @@ async def create_analysis(
 
     analysis = Analysis(
         user_id=current_user.id,
-        patient_name=patient_name,
-        patient_cpf=patient_cpf,
-        patient_age=patient_age,
+        patient_id=patient.id if patient else None,
         model_id=model_id,
         image_path=f"/uploads/{filename}",
         confidence=confidence,
@@ -169,12 +184,18 @@ def list_analyses(
     if current_user.type == "patient":
         query = query.filter(Analysis.user_id == current_user.id)
 
-    # Filtro de busca por nome ou CPF
+    # Filtro de busca por nome ou CPF do paciente
     if search:
-        query = query.filter(
-            (Analysis.patient_name.ilike(f"%{search}%"))
-            | (Analysis.patient_cpf.ilike(f"%{search}%"))
+        patient_ids = (
+            db.query(Patient.id)
+            .filter(
+                (Patient.name.ilike(f"%{search}%"))
+                | (Patient.cpf.ilike(f"%{search}%"))
+            )
+            .all()
         )
+        patient_id_list = [pid[0] for pid in patient_ids]
+        query = query.filter(Analysis.patient_id.in_(patient_id_list))
 
     # Filtro por especialidade (via join com AIModel)
     if condition and condition != "all":

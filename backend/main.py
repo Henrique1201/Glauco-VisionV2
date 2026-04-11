@@ -15,6 +15,7 @@ from routes.auth_routes import router as auth_router
 from routes.model_routes import router as model_router
 from routes.analysis_routes import router as analysis_router
 from routes.dashboard_routes import router as dashboard_router
+from routes.patient_routes import router as patient_router
 
 app = FastAPI(
     title="Avicena API",
@@ -38,6 +39,7 @@ app.include_router(auth_router)
 app.include_router(model_router)
 app.include_router(analysis_router)
 app.include_router(dashboard_router)
+app.include_router(patient_router)
 
 # ── Servir uploads ──────────────────────────────────────────────
 
