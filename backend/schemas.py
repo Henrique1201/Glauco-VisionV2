@@ -100,6 +100,11 @@ class AnalysisResponse(BaseModel):
         from_attributes = True
 
 
+class AnalysisUpdate(BaseModel):
+    recommendation: Optional[str] = None
+    status: Optional[str] = None
+
+
 # ── Dashboard ───────────────────────────────────────────────────
 
 class DashboardStats(BaseModel):

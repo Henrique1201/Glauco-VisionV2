@@ -66,6 +66,10 @@ export function DoctorDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/patients')} className="hidden sm:flex">
+              <Users className="w-4 h-4 mr-2" />
+              Pacientes
+            </Button>
             <div className="text-right">
               <div className="font-medium text-gray-900">Dr. {user?.name}</div>
               <div className="text-sm text-gray-500">Médico</div>

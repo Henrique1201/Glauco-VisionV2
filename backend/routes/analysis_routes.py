@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Analysis, AIModel, Patient, User
-from schemas import AnalysisResponse, FindingSchema
+from schemas import AnalysisResponse, FindingSchema, AnalysisUpdate
 from auth import get_current_user
 
 router = APIRouter(prefix="/api/analyses", tags=["Análises"])
@@ -225,3 +225,55 @@ def get_analysis(
         raise HTTPException(status_code=403, detail="Acesso negado")
 
     return _build_analysis_response(analysis, db)
+
+
+@router.put("/{analysis_id}", response_model=AnalysisResponse)
+def update_analysis(
+    analysis_id: int,
+    req: AnalysisUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada")
+
+    # Apenas o médico ou o dono podem editar
+    if current_user.type == "patient" and analysis.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    if req.recommendation is not None:
+        analysis.recommendation = req.recommendation
+    if req.status is not None:
+        analysis.status = req.status
+
+    db.commit()
+    db.refresh(analysis)
+    return _build_analysis_response(analysis, db)
+
+
+@router.delete("/{analysis_id}", status_code=204)
+def delete_analysis(
+    analysis_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada")
+
+    if current_user.type == "patient" and analysis.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Excluir a imagem associada, se existir
+    if analysis.image_path:
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", analysis.image_path.lstrip("/"))
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                print(f"Erro ao deletar imagem: {e}")
+
+    db.delete(analysis)
+    db.commit()
+

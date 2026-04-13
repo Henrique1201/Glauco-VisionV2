@@ -48,6 +48,8 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     throw new Error(error.detail || `Erro ${res.status}`);
   }
 
+  if (res.status === 204) return null;
+
   return res.json();
 }
 

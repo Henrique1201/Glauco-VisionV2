@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { Activity, ArrowLeft, Download, Share2, AlertCircle, User, Calendar, Brain, TrendingUp } from 'lucide-react';
+import { Activity, ArrowLeft, Download, Share2, AlertCircle, User, Calendar, Brain, TrendingUp, Trash2, Edit2, Check, X } from 'lucide-react';
 
 interface Finding {
   severity: string;
@@ -32,11 +32,16 @@ export function AnalysisDetails() {
   const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedRecommendation, setEditedRecommendation] = useState('');
 
   useEffect(() => {
     if (id) {
       apiFetch(`/analyses/${id}`)
-        .then(setAnalysis)
+        .then((data) => {
+          setAnalysis(data);
+          setEditedRecommendation(data.recommendation || '');
+        })
         .catch(console.error)
         .finally(() => setLoading(false));
     }
@@ -44,6 +49,31 @@ export function AnalysisDetails() {
 
   const handleBack = () => {
     navigate('/all-analyses');
+  };
+
+  const handleSaveRecommendation = async () => {
+    try {
+      const data = await apiFetch(`/analyses/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ recommendation: editedRecommendation })
+      });
+      setAnalysis(data);
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar recomendação');
+    }
+  };
+
+  const handleDeleteAnalysis = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir esta análise? Esta ação não pode ser desfeita.')) return;
+    try {
+      await apiFetch(`/analyses/${id}`, { method: 'DELETE' });
+      navigate('/all-analyses');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir análise');
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -98,6 +128,12 @@ export function AnalysisDetails() {
               <Download className="w-4 h-4 mr-2" />
               Baixar PDF
             </Button>
+            {user?.type !== 'patient' && (
+              <Button variant="destructive" onClick={handleDeleteAnalysis}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -221,8 +257,38 @@ export function AnalysisDetails() {
             </div>
 
             <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-              <h4 className="font-semibold text-amber-900 mb-2">Recomendação</h4>
-              <p className="text-sm text-amber-800">{analysis.recommendation}</p>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-amber-900">Recomendação</h4>
+                {user?.type !== 'patient' && !isEditing && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="h-8 text-amber-700 hover:text-amber-900 hover:bg-amber-100">
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Editar
+                  </Button>
+                )}
+              </div>
+              {isEditing ? (
+                <div className="space-y-3">
+                  <textarea 
+                    className="w-full p-2 border border-amber-300 rounded-md bg-white text-sm"
+                    rows={4}
+                    value={editedRecommendation}
+                    onChange={(e) => setEditedRecommendation(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setIsEditing(false);
+                      setEditedRecommendation(analysis.recommendation || '');
+                    }}>
+                      <X className="w-4 h-4 mr-1" /> Cancelar
+                    </Button>
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleSaveRecommendation}>
+                      <Check className="w-4 h-4 mr-1" /> Salvar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">{analysis.recommendation}</p>
+              )}
             </div>
           </div>
         </div>
