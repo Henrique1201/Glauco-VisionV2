@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import User
 
-# ── Configuração ────────────────────────────────────────────────
+#Configuração 
 
 SECRET_KEY = "avicena-secret-key-change-in-production"
 ALGORITHM = "HS256"
@@ -20,7 +20,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
-# ── Funções auxiliares ──────────────────────────────────────────
+#Funções auxiliares 
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

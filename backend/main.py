@@ -51,59 +51,14 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 SEED_MODELS = [
     {
-        "id": "skinnet",
-        "name": "SkinNet v2",
-        "category": "Dermatologia",
-        "description": "Análise de lesões de pele, melanoma e condições dermatológicas",
-        "accuracy": "96%",
-        "color_gradient": "from-orange-500 to-red-500",
-        "icon_name": "Scan",
-    },
-    {
-        "id": "chestxray",
-        "name": "ChestX-Ray AI",
-        "category": "Pneumologia",
-        "description": "Detecção de pneumonia, tuberculose e outras condições pulmonares",
-        "accuracy": "94%",
-        "color_gradient": "from-blue-500 to-cyan-500",
-        "icon_name": "Stethoscope",
-    },
-    {
-        "id": "retinalscan",
-        "name": "RetinalScan",
+        "id": "glaucovision",
+        "name": "Glauco-Vision",
         "category": "Oftalmologia",
-        "description": "Diagnóstico de retinopatia diabética e degeneração macular",
-        "accuracy": "93%",
-        "color_gradient": "from-purple-500 to-pink-500",
+        "description": "Análise avançada para detecção de Glaucoma baseada na estrutura do disco óptico e escavação papilar.",
+        "accuracy": "99%",
+        "color_gradient": "from-teal-500 to-emerald-500",
         "icon_name": "Eye",
-    },
-    {
-        "id": "cardioai",
-        "name": "CardioAI",
-        "category": "Cardiologia",
-        "description": "Análise de ECG e detecção de arritmias cardíacas",
-        "accuracy": "92%",
-        "color_gradient": "from-red-500 to-rose-500",
-        "icon_name": "Heart",
-    },
-    {
-        "id": "bonefracture",
-        "name": "BoneFracture AI",
-        "category": "Ortopedia",
-        "description": "Detecção de fraturas e anomalias ósseas em raio-X",
-        "accuracy": "95%",
-        "color_gradient": "from-gray-600 to-gray-800",
-        "icon_name": "Bone",
-    },
-    {
-        "id": "neuralscan",
-        "name": "NeuralScan",
-        "category": "Neurologia",
-        "description": "Análise de ressonância magnética cerebral e detecção de anomalias",
-        "accuracy": "91%",
-        "color_gradient": "from-indigo-500 to-purple-600",
-        "icon_name": "Brain",
-    },
+    }
 ]
 
 
@@ -113,14 +68,12 @@ def startup():
 
     db = SessionLocal()
     try:
-        existing = db.query(AIModel).count()
-        if existing == 0:
-            for m in SEED_MODELS:
-                db.add(AIModel(**m))
-            db.commit()
-            print("✅ Modelos de IA inseridos no banco de dados")
-        else:
-            print(f"ℹ️  {existing} modelos já existem no banco")
+        # Forçamos a deleção dos modelos atuais e adicionamos apenas o Glauco-Vision, para ter certeza que é o único model
+        db.query(AIModel).delete()
+        for m in SEED_MODELS:
+            db.add(AIModel(**m))
+        db.commit()
+        print("✅ Modelo Glauco-Vision inserido no banco de dados com sucesso")
     finally:
         db.close()
 

@@ -20,56 +20,22 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ── Dados para geração simulada de resultados ───────────────────
 
 FINDINGS_BY_CATEGORY = {
-    "Dermatologia": [
-        {"severity": "high", "text": "Lesão pigmentada assimétrica detectada"},
-        {"severity": "medium", "text": "Bordas irregulares presentes"},
-        {"severity": "low", "text": "Variação de cor observada"},
-        {"severity": "medium", "text": "Diâmetro acima de 6mm identificado"},
-    ],
-    "Pneumologia": [
-        {"severity": "high", "text": "Opacidade pulmonar detectada"},
-        {"severity": "medium", "text": "Infiltrado intersticial presente"},
-        {"severity": "low", "text": "Leve aumento da área cardíaca"},
-        {"severity": "medium", "text": "Consolidação no lobo inferior"},
-    ],
     "Oftalmologia": [
-        {"severity": "high", "text": "Microaneurismas retinianos detectados"},
-        {"severity": "medium", "text": "Exsudatos duros presentes"},
-        {"severity": "low", "text": "Alteração no disco óptico observada"},
-        {"severity": "medium", "text": "Hemorragias retinianas identificadas"},
-    ],
-    "Cardiologia": [
-        {"severity": "high", "text": "Arritmia ventricular detectada"},
-        {"severity": "medium", "text": "Intervalo QT prolongado"},
-        {"severity": "low", "text": "Desvio do eixo cardíaco"},
-        {"severity": "medium", "text": "Alteração no segmento ST"},
-    ],
-    "Ortopedia": [
-        {"severity": "high", "text": "Fratura transversal detectada"},
-        {"severity": "medium", "text": "Linha de fratura visível no córtex"},
-        {"severity": "low", "text": "Edema de partes moles adjacente"},
-        {"severity": "medium", "text": "Desalinhamento ósseo identificado"},
-    ],
-    "Neurologia": [
-        {"severity": "high", "text": "Lesão expansiva detectada"},
-        {"severity": "medium", "text": "Alteração de sinal na substância branca"},
-        {"severity": "low", "text": "Atrofia cortical discreta observada"},
-        {"severity": "medium", "text": "Realce anômalo pós-contraste"},
+        {"severity": "high", "text": "Aumento suspeito da escavação do disco óptico (Relação E/D > 0.6)"},
+        {"severity": "high", "text": "Afinamento peripapilar da camada de fibras nervosas da retina"},
+        {"severity": "medium", "text": "Hemorragia de disco óptico (menor)"},
+        {"severity": "low", "text": "Pequena assimetria de escavação entre os olhos"},
+        {"severity": "high", "text": "Notching (entalhe) na rima neural localizado inferiormente"},
     ],
 }
 
 RECOMMENDATIONS_BY_CATEGORY = {
-    "Dermatologia": "Esta análise sugere a necessidade de avaliação dermatológica presencial. Recomenda-se biópsia para confirmação diagnóstica.",
-    "Pneumologia": "Os achados sugerem possível processo infeccioso pulmonar. Recomenda-se correlação clínico-laboratorial e acompanhamento com pneumologista.",
-    "Oftalmologia": "Achados compatíveis com retinopatia. Recomenda-se avaliação com oftalmologista especialista em retina para conduta terapêutica.",
-    "Cardiologia": "Alterações eletrocardiográficas identificadas. Recomenda-se avaliação cardiológica completa com ecocardiograma.",
-    "Ortopedia": "Achados compatíveis com fratura. Recomenda-se imobilização imediata e avaliação ortopédica para planejamento terapêutico.",
-    "Neurologia": "Achados que necessitam investigação adicional. Recomenda-se avaliação neurológica com exames complementares.",
+    "Oftalmologia": "Achados fortemente indicativos de neuropatia óptica glaucomatosa. Recomenda-se aferição da pressão intraocular (PIO), campimetria visual computadorizada e possível início de terapia hipotensora ocular imediatamente.",
 }
 
 
 def _generate_findings(category: str) -> list[dict]:
-    pool = FINDINGS_BY_CATEGORY.get(category, FINDINGS_BY_CATEGORY["Dermatologia"])
+    pool = FINDINGS_BY_CATEGORY.get("Oftalmologia", [])
     count = random.randint(2, min(4, len(pool)))
     selected = random.sample(pool, count)
     for f in selected:
