@@ -7,6 +7,7 @@ import { UploadImage } from './components/UploadImage';
 import { Results } from './components/Results';
 import { AllAnalyses } from './components/AllAnalyses';
 import { AnalysisDetails } from './components/AnalysisDetails';
+import { PatientManagement } from './components/PatientManagement';
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
   {
     path: '/analysis/:id',
     element: <AnalysisDetails />
+  },
+  {
+    path: '/patients',
+    element: <PatientManagement />
   },
   {
     path: '*',

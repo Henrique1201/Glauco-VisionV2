@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Activity, ArrowLeft, Upload, X, CheckCircle2 } from 'lucide-react';
 import uploadImage from 'figma:asset/253373390eec7f1820b22a9c6e5785b9c1ec64f7.png';
@@ -11,6 +12,7 @@ export function UploadImage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -18,6 +20,7 @@ export function UploadImage() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setError(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -31,6 +34,7 @@ export function UploadImage() {
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       setSelectedFile(file);
+      setError(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -45,11 +49,29 @@ export function UploadImage() {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !modelId) return;
 
     setUploading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    navigate(`/results?model=${modelId}`);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+      formData.append('model_id', modelId);
+      formData.append('patient_name', user?.name || 'Paciente');
+      formData.append('patient_cpf', user?.email || '');
+
+      const result = await apiFetch('/analyses', {
+        method: 'POST',
+        body: formData,
+      });
+
+      navigate(`/results?id=${result.id}`);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao analisar imagem');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleBack = () => {
@@ -129,6 +151,12 @@ export function UploadImage() {
                     {selectedFile && (selectedFile.size / 1024).toFixed(1)} KB
                   </div>
                 </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
               </div>
             )}
 

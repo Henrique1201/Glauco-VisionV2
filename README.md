@@ -1,11 +1,35 @@
 
-  # Sistema-Avicena
+# Sistema Avicena (Glauco-VisionV2)
 
-  This is a code bundle for Sistema-Avicena. The original project is available at https://www.figma.com/design/FbShH7fiWcnth9FrYn8nJk/Sistema-Avicena.
+Sistema de diagnóstico médico assistido por inteligência artificial.
 
-  ## Running the code
+## Estrutura do projeto
 
-  Run `npm i` to install the dependencies.
+```
+├── backend/     # API Python (FastAPI + SQLite)
+├── frontend/    # Interface React (Vite + Tailwind)
+├── guidelines/  # Diretrizes de design
+└── README.md
+```
 
-  Run `npm run dev` to start the development server.
-  
+## Como executar
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+# → http://localhost:8000 (Swagger: http://localhost:8000/docs)
+```
+
+### Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+# → http://localhost:5173
+```

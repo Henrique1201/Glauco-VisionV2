@@ -1,39 +1,105 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
-import { Activity, ArrowLeft, Download, Share2, AlertCircle, User, Calendar, Brain, TrendingUp } from 'lucide-react';
-import resultImage from 'figma:asset/0250d7a5e5111f510b07c5bb1fed6a8eb1f5aeb6.png';
+import { Activity, ArrowLeft, Download, Share2, AlertCircle, User, Calendar, Brain, TrendingUp, Trash2, Edit2, Check, X } from 'lucide-react';
 
-const analysisData: Record<string, any> = {
-  '1': {
-    patient: 'Maria Silva',
-    cpf: '123.456.789-00',
-    age: '45 anos',
-    condition: 'Dermatologia',
-    model: 'SkinNet v2',
-    confidence: '96%',
-    date: '10 de abril de 2026',
-    time: '14:30',
-    findings: [
-      { severity: 'high', text: 'Lesão pigmentada assimétrica detectada', confidence: '96%' },
-      { severity: 'medium', text: 'Bordas irregulares presentes', confidence: '89%' },
-      { severity: 'low', text: 'Variação de cor observada', confidence: '76%' }
-    ],
-    recommendation: 'Esta análise sugere a necessidade de avaliação dermatológica presencial. Recomenda-se biópsia para confirmação diagnóstica.',
-    processingTime: '1.8s'
-  }
-};
+interface Finding {
+  severity: string;
+  text: string;
+  confidence: string;
+}
+
+interface AnalysisDetail {
+  id: number;
+  patient_name: string;
+  patient_cpf: string;
+  patient_age: string;
+  model_name: string;
+  model_category: string;
+  confidence: number;
+  findings: Finding[];
+  recommendation: string;
+  processing_time: string;
+  image_path: string;
+  created_at: string;
+}
 
 export function AnalysisDetails() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedRecommendation, setEditedRecommendation] = useState('');
 
-  const analysis = analysisData[id || '1'] || analysisData['1'];
+  useEffect(() => {
+    if (id) {
+      apiFetch(`/analyses/${id}`)
+        .then((data) => {
+          setAnalysis(data);
+          setEditedRecommendation(data.recommendation || '');
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [id]);
 
   const handleBack = () => {
     navigate('/all-analyses');
   };
+
+  const handleSaveRecommendation = async () => {
+    try {
+      const data = await apiFetch(`/analyses/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ recommendation: editedRecommendation })
+      });
+      setAnalysis(data);
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar recomendação');
+    }
+  };
+
+  const handleDeleteAnalysis = async () => {
+    if (!window.confirm('Tem certeza que deseja excluir esta análise? Esta ação não pode ser desfeita.')) return;
+    try {
+      await apiFetch(`/analyses/${id}`, { method: 'DELETE' });
+      navigate('/all-analyses');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir análise');
+    }
+  };
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) +
+      ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500 text-lg">Carregando detalhes...</p>
+      </div>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 text-lg mb-4">Análise não encontrada</p>
+          <Button onClick={handleBack}>Voltar</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,6 +128,12 @@ export function AnalysisDetails() {
               <Download className="w-4 h-4 mr-2" />
               Baixar PDF
             </Button>
+            {user?.type !== 'patient' && (
+              <Button variant="destructive" onClick={handleDeleteAnalysis}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -78,7 +150,7 @@ export function AnalysisDetails() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Nome</div>
-                    <div className="font-medium text-gray-900">{analysis.patient}</div>
+                    <div className="font-medium text-gray-900">{analysis.patient_name}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -87,7 +159,7 @@ export function AnalysisDetails() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">CPF</div>
-                    <div className="font-medium text-gray-900">{analysis.cpf}</div>
+                    <div className="font-medium text-gray-900">{analysis.patient_cpf || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -96,7 +168,7 @@ export function AnalysisDetails() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Idade</div>
-                    <div className="font-medium text-gray-900">{analysis.age}</div>
+                    <div className="font-medium text-gray-900">{analysis.patient_age || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -105,7 +177,7 @@ export function AnalysisDetails() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">Data da análise</div>
-                    <div className="font-medium text-gray-900">{analysis.date} às {analysis.time}</div>
+                    <div className="font-medium text-gray-900">{formatDate(analysis.created_at)}</div>
                   </div>
                 </div>
               </div>
@@ -116,11 +188,17 @@ export function AnalysisDetails() {
                 <h3 className="font-semibold text-gray-900">Imagem analisada</h3>
               </div>
               <div className="p-6">
-                <img
-                  src={resultImage}
-                  alt="Imagem analisada"
-                  className="w-full rounded-lg"
-                />
+                {analysis.image_path ? (
+                  <img
+                    src={`http://localhost:8000${analysis.image_path}`}
+                    alt="Imagem analisada"
+                    className="w-full rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                    Imagem não disponível
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -128,9 +206,9 @@ export function AnalysisDetails() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6 border border-gray-200">
               <div className="text-sm text-gray-600 mb-1">Confiança geral</div>
-              <div className="text-3xl font-bold text-gray-900 mb-2">{analysis.confidence}</div>
+              <div className="text-3xl font-bold text-gray-900 mb-2">{analysis.confidence}%</div>
               <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: analysis.confidence }}></div>
+                <div className="bg-green-600 h-2 rounded-full" style={{ width: `${analysis.confidence}%` }}></div>
               </div>
             </div>
 
@@ -141,10 +219,10 @@ export function AnalysisDetails() {
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Modelo utilizado</div>
-                  <div className="font-semibold text-gray-900">{analysis.model}</div>
+                  <div className="font-semibold text-gray-900">{analysis.model_name}</div>
                 </div>
               </div>
-              <div className="text-sm text-gray-600">{analysis.condition}</div>
+              <div className="text-sm text-gray-600">{analysis.model_category}</div>
             </div>
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -154,7 +232,7 @@ export function AnalysisDetails() {
                 </div>
                 <div>
                   <div className="text-sm text-gray-600">Tempo de processamento</div>
-                  <div className="font-semibold text-gray-900">{analysis.processingTime}</div>
+                  <div className="font-semibold text-gray-900">{analysis.processing_time}</div>
                 </div>
               </div>
             </div>
@@ -162,7 +240,7 @@ export function AnalysisDetails() {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Principais achados</h3>
               <div className="space-y-3">
-                {analysis.findings.map((finding: any, idx: number) => (
+                {analysis.findings?.map((finding, idx) => (
                   <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
                       finding.severity === 'high' ? 'text-red-600' :
@@ -179,8 +257,38 @@ export function AnalysisDetails() {
             </div>
 
             <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-              <h4 className="font-semibold text-amber-900 mb-2">Recomendação</h4>
-              <p className="text-sm text-amber-800">{analysis.recommendation}</p>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-amber-900">Recomendação</h4>
+                {user?.type !== 'patient' && !isEditing && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="h-8 text-amber-700 hover:text-amber-900 hover:bg-amber-100">
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Editar
+                  </Button>
+                )}
+              </div>
+              {isEditing ? (
+                <div className="space-y-3">
+                  <textarea 
+                    className="w-full p-2 border border-amber-300 rounded-md bg-white text-sm"
+                    rows={4}
+                    value={editedRecommendation}
+                    onChange={(e) => setEditedRecommendation(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      setIsEditing(false);
+                      setEditedRecommendation(analysis.recommendation || '');
+                    }}>
+                      <X className="w-4 h-4 mr-1" /> Cancelar
+                    </Button>
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleSaveRecommendation}>
+                      <Check className="w-4 h-4 mr-1" /> Salvar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-800 whitespace-pre-wrap">{analysis.recommendation}</p>
+              )}
             </div>
           </div>
         </div>

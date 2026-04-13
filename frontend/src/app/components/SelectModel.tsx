@@ -1,70 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Activity, ArrowLeft, Brain, Eye, Heart, Bone, Stethoscope, Scan } from 'lucide-react';
 
-const models = [
-  {
-    id: 'skinnet',
-    name: 'SkinNet v2',
-    category: 'Dermatologia',
-    description: 'Análise de lesões de pele, melanoma e condições dermatológicas',
-    icon: Scan,
-    accuracy: '96%',
-    color: 'from-orange-500 to-red-500'
-  },
-  {
-    id: 'chestxray',
-    name: 'ChestX-Ray AI',
-    category: 'Pneumologia',
-    description: 'Detecção de pneumonia, tuberculose e outras condições pulmonares',
-    icon: Stethoscope,
-    accuracy: '94%',
-    color: 'from-blue-500 to-cyan-500'
-  },
-  {
-    id: 'retinalscan',
-    name: 'RetinalScan',
-    category: 'Oftalmologia',
-    description: 'Diagnóstico de retinopatia diabética e degeneração macular',
-    icon: Eye,
-    accuracy: '93%',
-    color: 'from-purple-500 to-pink-500'
-  },
-  {
-    id: 'cardioai',
-    name: 'CardioAI',
-    category: 'Cardiologia',
-    description: 'Análise de ECG e detecção de arritmias cardíacas',
-    icon: Heart,
-    accuracy: '92%',
-    color: 'from-red-500 to-rose-500'
-  },
-  {
-    id: 'bonefracture',
-    name: 'BoneFracture AI',
-    category: 'Ortopedia',
-    description: 'Detecção de fraturas e anomalias ósseas em raio-X',
-    icon: Bone,
-    accuracy: '95%',
-    color: 'from-gray-600 to-gray-800'
-  },
-  {
-    id: 'neuralscan',
-    name: 'NeuralScan',
-    category: 'Neurologia',
-    description: 'Análise de ressonância magnética cerebral e detecção de anomalias',
-    icon: Brain,
-    accuracy: '91%',
-    color: 'from-indigo-500 to-purple-600'
-  }
-];
+const ICON_MAP: Record<string, any> = {
+  Scan, Stethoscope, Eye, Heart, Bone, Brain,
+};
+
+interface AIModel {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  accuracy: string;
+  color_gradient: string;
+  icon_name: string;
+}
 
 export function SelectModel() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [models, setModels] = useState<AIModel[]>([]);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    apiFetch('/models').then(setModels).catch(console.error);
+  }, []);
 
   const handleContinue = () => {
     if (selectedModel) {
@@ -105,7 +68,7 @@ export function SelectModel() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {models.map((model) => {
-            const Icon = model.icon;
+            const Icon = ICON_MAP[model.icon_name] || Brain;
             const isSelected = selectedModel === model.id;
 
             return (
@@ -116,7 +79,7 @@ export function SelectModel() {
                   isSelected ? 'border-blue-600 shadow-lg' : 'border-gray-200'
                 }`}
               >
-                <div className={`bg-gradient-to-br ${model.color} p-6 rounded-t-xl`}>
+                <div className={`bg-gradient-to-br ${model.color_gradient} p-6 rounded-t-xl`}>
                   <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-4">
                     <Icon className="w-7 h-7 text-white" />
                   </div>

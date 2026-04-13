@@ -1,22 +1,40 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Activity, FileText, Clock, Brain, LogOut } from 'lucide-react';
 import examinationImage from 'figma:asset/cfe946d7a76a6d1ceec0916780dfe5c8dcf6abc3.png';
 
+interface MyAnalysis {
+  id: number;
+  model_category: string;
+  model_name: string;
+  confidence: number;
+  created_at: string;
+  status: string;
+}
+
 export function PatientDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [myAnalyses, setMyAnalyses] = useState<MyAnalysis[]>([]);
+
+  useEffect(() => {
+    apiFetch('/analyses').then(setMyAnalyses).catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const myAnalyses = [
-    { condition: 'Análise dermatológica', model: 'SkinNet v2', date: '05 Abr 2026', status: 'Concluído', confidence: '94%' },
-    { condition: 'Raio-X de tórax', model: 'ChestX-Ray AI', date: '28 Mar 2026', status: 'Concluído', confidence: '91%' }
-  ];
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const statusLabel = (s: string) => s === 'completed' ? 'Concluído' : s;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -119,23 +137,26 @@ export function PatientDashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Minhas análises</h3>
           <div className="space-y-4">
-            {myAnalyses.map((analysis, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            {myAnalyses.length === 0 && (
+              <p className="text-gray-500 text-center py-4">Nenhuma análise realizada ainda</p>
+            )}
+            {myAnalyses.map((analysis) => (
+              <div key={analysis.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <FileText className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{analysis.condition}</div>
-                    <div className="text-sm text-gray-600">{analysis.model} · {analysis.date}</div>
+                    <div className="font-medium text-gray-900">Análise {analysis.model_category?.toLowerCase()}</div>
+                    <div className="text-sm text-gray-600">{analysis.model_name} · {formatDate(analysis.created_at)}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="font-semibold text-green-600">{analysis.confidence}</div>
-                    <div className="text-sm text-gray-500">{analysis.status}</div>
+                    <div className="font-semibold text-green-600">{analysis.confidence}%</div>
+                    <div className="text-sm text-gray-500">{statusLabel(analysis.status)}</div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/results?model=skinnet')}>Ver resultado</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/analysis/${analysis.id}`)}>Ver resultado</Button>
                 </div>
               </div>
             ))}
