@@ -89,6 +89,7 @@ class AnalysisResponse(BaseModel):
     model_name: Optional[str] = None
     model_category: Optional[str] = None
     image_path: Optional[str] = None
+    segmented_image_path: Optional[str] = None
     confidence: float
     findings: Optional[List[FindingSchema]] = None
     recommendation: Optional[str] = None

@@ -11,65 +11,37 @@ from database import get_db
 from models import Analysis, AIModel, Patient, User
 from schemas import AnalysisResponse, FindingSchema, AnalysisUpdate
 from auth import get_current_user
+from ai.glaucoma_classifier import GlaucomaClassifier
+from ai.segmentation import segmentar_disco_optico
+import cv2
 
 router = APIRouter(prefix="/api/analyses", tags=["Análises"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ── Inicializar classificador de IA ─────────────────────────────
+classifier = GlaucomaClassifier()
 
 # ── Dados para geração simulada de resultados ───────────────────
 
 FINDINGS_BY_CATEGORY = {
-    "Dermatologia": [
-        {"severity": "high", "text": "Lesão pigmentada assimétrica detectada"},
-        {"severity": "medium", "text": "Bordas irregulares presentes"},
-        {"severity": "low", "text": "Variação de cor observada"},
-        {"severity": "medium", "text": "Diâmetro acima de 6mm identificado"},
-    ],
-    "Pneumologia": [
-        {"severity": "high", "text": "Opacidade pulmonar detectada"},
-        {"severity": "medium", "text": "Infiltrado intersticial presente"},
-        {"severity": "low", "text": "Leve aumento da área cardíaca"},
-        {"severity": "medium", "text": "Consolidação no lobo inferior"},
-    ],
     "Oftalmologia": [
-        {"severity": "high", "text": "Microaneurismas retinianos detectados"},
-        {"severity": "medium", "text": "Exsudatos duros presentes"},
-        {"severity": "low", "text": "Alteração no disco óptico observada"},
-        {"severity": "medium", "text": "Hemorragias retinianas identificadas"},
-    ],
-    "Cardiologia": [
-        {"severity": "high", "text": "Arritmia ventricular detectada"},
-        {"severity": "medium", "text": "Intervalo QT prolongado"},
-        {"severity": "low", "text": "Desvio do eixo cardíaco"},
-        {"severity": "medium", "text": "Alteração no segmento ST"},
-    ],
-    "Ortopedia": [
-        {"severity": "high", "text": "Fratura transversal detectada"},
-        {"severity": "medium", "text": "Linha de fratura visível no córtex"},
-        {"severity": "low", "text": "Edema de partes moles adjacente"},
-        {"severity": "medium", "text": "Desalinhamento ósseo identificado"},
-    ],
-    "Neurologia": [
-        {"severity": "high", "text": "Lesão expansiva detectada"},
-        {"severity": "medium", "text": "Alteração de sinal na substância branca"},
-        {"severity": "low", "text": "Atrofia cortical discreta observada"},
-        {"severity": "medium", "text": "Realce anômalo pós-contraste"},
+        {"severity": "high", "text": "Aumento suspeito da escavação do disco óptico (Relação E/D > 0.6)"},
+        {"severity": "high", "text": "Afinamento peripapilar da camada de fibras nervosas da retina"},
+        {"severity": "medium", "text": "Hemorragia de disco óptico (menor)"},
+        {"severity": "low", "text": "Pequena assimetria de escavação entre os olhos"},
+        {"severity": "high", "text": "Notching (entalhe) na rima neural localizado inferiormente"},
     ],
 }
 
 RECOMMENDATIONS_BY_CATEGORY = {
-    "Dermatologia": "Esta análise sugere a necessidade de avaliação dermatológica presencial. Recomenda-se biópsia para confirmação diagnóstica.",
-    "Pneumologia": "Os achados sugerem possível processo infeccioso pulmonar. Recomenda-se correlação clínico-laboratorial e acompanhamento com pneumologista.",
-    "Oftalmologia": "Achados compatíveis com retinopatia. Recomenda-se avaliação com oftalmologista especialista em retina para conduta terapêutica.",
-    "Cardiologia": "Alterações eletrocardiográficas identificadas. Recomenda-se avaliação cardiológica completa com ecocardiograma.",
-    "Ortopedia": "Achados compatíveis com fratura. Recomenda-se imobilização imediata e avaliação ortopédica para planejamento terapêutico.",
-    "Neurologia": "Achados que necessitam investigação adicional. Recomenda-se avaliação neurológica com exames complementares.",
+    "Oftalmologia": "Achados fortemente indicativos de neuropatia óptica glaucomatosa. Recomenda-se aferição da pressão intraocular (PIO), campimetria visual computadorizada e possível início de terapia hipotensora ocular imediatamente.",
 }
 
 
 def _generate_findings(category: str) -> list[dict]:
-    pool = FINDINGS_BY_CATEGORY.get(category, FINDINGS_BY_CATEGORY["Dermatologia"])
+    pool = FINDINGS_BY_CATEGORY.get("Oftalmologia", [])
     count = random.randint(2, min(4, len(pool)))
     selected = random.sample(pool, count)
     for f in selected:
@@ -91,6 +63,7 @@ def _build_analysis_response(analysis: Analysis, db: Session) -> dict:
         "model_name": model.name if model else None,
         "model_category": model.category if model else None,
         "image_path": analysis.image_path,
+        "segmented_image_path": analysis.segmented_image_path,
         "confidence": analysis.confidence,
         "findings": analysis.findings,
         "recommendation": analysis.recommendation,
@@ -141,26 +114,35 @@ async def create_analysis(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    # Simular processamento
-    start = time.time()
-    findings = _generate_findings(ai_model.category)
-    confidence = round(random.uniform(82, 98), 1)
-    elapsed = round(time.time() - start + random.uniform(0.5, 2.0), 1)
+    # ── Segmentação da Imagem ──
+    segmented_filename = f"{uuid.uuid4().hex}_seg.png"
+    segmented_filepath = os.path.join(UPLOAD_DIR, segmented_filename)
+    try:
+        seg_bgr = segmentar_disco_optico(filepath)
+        cv2.imwrite(segmented_filepath, seg_bgr)
+        # ── Inferência de IA na imagem segmentada ──
+        ai_result = classifier.predict(segmented_filepath)
+    except Exception as e:
+        print(f"Erro na segmentação: {e}")
+        segmented_filename = None
+        # Fallback caso dê erro na segmentação
+        ai_result = classifier.predict(filepath)
 
-    recommendation = RECOMMENDATIONS_BY_CATEGORY.get(
-        ai_model.category,
-        "Recomenda-se consulta com especialista para avaliação clínica completa.",
-    )
+    confidence = ai_result["confidence"]
+    findings = ai_result["findings"]
+    recommendation = ai_result["recommendation"]
+    elapsed = ai_result["processing_time"]
 
     analysis = Analysis(
         user_id=current_user.id,
         patient_id=patient.id if patient else None,
         model_id=model_id,
         image_path=f"/uploads/{filename}",
+        segmented_image_path=f"/uploads/{segmented_filename}" if segmented_filename else None,
         confidence=confidence,
         findings=findings,
         recommendation=recommendation,
-        processing_time=f"{elapsed}s",
+        processing_time=elapsed,
         status="completed",
     )
     db.add(analysis)
