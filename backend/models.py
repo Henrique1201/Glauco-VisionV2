@@ -56,6 +56,7 @@ class Analysis(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
     model_id = Column(String(50), ForeignKey("ai_models.id"), nullable=False)
     image_path = Column(String(500), nullable=True)
+    segmented_image_path = Column(String(500), nullable=True)
     confidence = Column(Float, nullable=False)
     findings = Column(JSON, nullable=True)
     recommendation = Column(Text, nullable=True)
