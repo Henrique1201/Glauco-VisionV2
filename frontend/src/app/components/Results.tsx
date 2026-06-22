@@ -115,103 +115,37 @@ export function Results() {
           <p className="text-gray-600">Resultados gerados em {formatDate(result.created_at)}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Confiança geral</div>
-            <div className="text-3xl font-bold text-gray-900 mb-2">{result.confidence}%</div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-600 h-2 rounded-full" style={{ width: `${result.confidence}%` }}></div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Modelo utilizado</div>
-            <div className="text-xl font-bold text-gray-900 mb-2">{result.model_name}</div>
-            <div className="text-sm text-gray-600">{result.model_category}</div>
-          </div>
 
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="text-sm text-gray-600 mb-1">Tempo de processamento</div>
-            <div className="text-3xl font-bold text-gray-900 mb-2">{result.processing_time}</div>
-            <div className="text-sm text-gray-600">Análise rápida</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Imagem analisada</h3>
-            </div>
-            <div className="p-6">
-              {result.image_path ? (
-                <img
-                  src={`http://localhost:8000${result.image_path}`}
-                  alt="Imagem analisada"
-                  className="w-full rounded-lg"
-                />
-              ) : (
-                <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                  Imagem não disponível
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Principais achados</h3>
-              <div className="space-y-3">
-                {result.findings?.map((finding, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                      finding.severity === 'high' ? 'text-red-600' :
-                      finding.severity === 'medium' ? 'text-orange-600' :
-                      'text-blue-600'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-900 mb-1">{finding.text}</div>
-                      <div className="text-xs text-gray-600">Confiança: {finding.confidence}</div>
-                    </div>
-                  </div>
-                ))}
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center max-w-2xl mx-auto mb-8 shadow-sm">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Diagnóstico</h3>
+          
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-2">Resultado da IA</div>
+              <div className={`text-4xl font-extrabold ${result.findings?.[0]?.severity === 'high' || result.confidence > 70 ? 'text-blue-700' : 'text-green-600'}`}>
+                {result.findings && result.findings.length > 0 ? "Glaucoma" : "Normal"}
               </div>
             </div>
 
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-              <div className="flex items-start gap-3">
-                <Info className="w-6 h-6 text-amber-700 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-amber-900 mb-2">Recomendação médica</h4>
-                  <p className="text-sm text-amber-800">{result.recommendation}</p>
-                </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="text-sm text-gray-500 mb-1">Confiança</div>
+                <div className="text-2xl font-bold text-gray-900">{result.confidence}%</div>
               </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h4 className="font-semibold text-gray-900 mb-3">Próximos passos</h4>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-1">•</span>
-                  <span>Agende uma consulta com {result.model_category?.toLowerCase() === 'dermatologia' ? 'dermatologista' : 'especialista'}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-1">•</span>
-                  <span>Leve este relatório para a consulta</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-1">•</span>
-                  <span>Monitore quaisquer mudanças na região analisada</span>
-                </li>
-              </ul>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="text-sm text-gray-500 mb-1">Processamento</div>
+                <div className="text-2xl font-bold text-gray-900">{result.processing_time}</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={handleBack}>
+        <div className="flex justify-center gap-4">
+          <Button variant="outline" size="lg" onClick={handleBack}>
             Voltar ao início
           </Button>
-          <Button onClick={handleNewAnalysis}>
+          <Button size="lg" onClick={handleNewAnalysis}>
             Nova análise
           </Button>
         </div>
