@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from database import engine, SessionLocal, Base
 from models import AIModel
+from ai.glaucoma_classifier import GlaucomaClassifier
 
 from routes.auth_routes import router as auth_router
 from routes.model_routes import router as model_router
@@ -54,8 +55,8 @@ SEED_MODELS = [
         "id": "glaucovision",
         "name": "Glauco-Vision",
         "category": "Oftalmologia",
-        "description": "Análise avançada para detecção de Glaucoma baseada na estrutura do disco óptico e escavação papilar.",
-        "accuracy": "99%",
+        "description": "Análise avançada para detecção de Glaucoma baseada na estrutura do disco óptico e escavação papilar, utilizando DenseNet121 com transfer learning.",
+        "accuracy": "91%",
         "color_gradient": "from-teal-500 to-emerald-500",
         "icon_name": "Eye",
     }
@@ -76,6 +77,15 @@ def startup():
         print("✅ Modelo Glauco-Vision inserido no banco de dados com sucesso")
     finally:
         db.close()
+
+    # Pré-carregar o modelo de IA para evitar latência na primeira requisição
+    classifier = GlaucomaClassifier()
+    if classifier.is_model_loaded:
+        print("✅ Modelo de IA carregado e pronto para inferência")
+    else:
+        print("⚠️  Modelo de IA não encontrado — operando em modo FALLBACK (simulação)")
+        print("   Para ativar: coloque o checkpoint em backend/ai_models/densenet121_glaucoma.pth")
+        print("   Ou execute: python train_model.py")
 
 
 @app.get("/")
