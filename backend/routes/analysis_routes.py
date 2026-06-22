@@ -11,11 +11,17 @@ from database import get_db
 from models import Analysis, AIModel, Patient, User
 from schemas import AnalysisResponse, FindingSchema, AnalysisUpdate
 from auth import get_current_user
+from ai.glaucoma_classifier import GlaucomaClassifier
+from ai.segmentation import segmentar_disco_optico
+import cv2
 
 router = APIRouter(prefix="/api/analyses", tags=["Análises"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ── Inicializar classificador de IA ─────────────────────────────
+classifier = GlaucomaClassifier()
 
 # ── Dados para geração simulada de resultados ───────────────────
 
@@ -57,6 +63,7 @@ def _build_analysis_response(analysis: Analysis, db: Session) -> dict:
         "model_name": model.name if model else None,
         "model_category": model.category if model else None,
         "image_path": analysis.image_path,
+        "segmented_image_path": analysis.segmented_image_path,
         "confidence": analysis.confidence,
         "findings": analysis.findings,
         "recommendation": analysis.recommendation,
@@ -107,26 +114,35 @@ async def create_analysis(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    # Simular processamento
-    start = time.time()
-    findings = _generate_findings(ai_model.category)
-    confidence = round(random.uniform(82, 98), 1)
-    elapsed = round(time.time() - start + random.uniform(0.5, 2.0), 1)
+    # ── Segmentação da Imagem ──
+    segmented_filename = f"{uuid.uuid4().hex}_seg.png"
+    segmented_filepath = os.path.join(UPLOAD_DIR, segmented_filename)
+    try:
+        seg_bgr = segmentar_disco_optico(filepath)
+        cv2.imwrite(segmented_filepath, seg_bgr)
+        # ── Inferência de IA na imagem segmentada ──
+        ai_result = classifier.predict(segmented_filepath)
+    except Exception as e:
+        print(f"Erro na segmentação: {e}")
+        segmented_filename = None
+        # Fallback caso dê erro na segmentação
+        ai_result = classifier.predict(filepath)
 
-    recommendation = RECOMMENDATIONS_BY_CATEGORY.get(
-        ai_model.category,
-        "Recomenda-se consulta com especialista para avaliação clínica completa.",
-    )
+    confidence = ai_result["confidence"]
+    findings = ai_result["findings"]
+    recommendation = ai_result["recommendation"]
+    elapsed = ai_result["processing_time"]
 
     analysis = Analysis(
         user_id=current_user.id,
         patient_id=patient.id if patient else None,
         model_id=model_id,
         image_path=f"/uploads/{filename}",
+        segmented_image_path=f"/uploads/{segmented_filename}" if segmented_filename else None,
         confidence=confidence,
         findings=findings,
         recommendation=recommendation,
-        processing_time=f"{elapsed}s",
+        processing_time=elapsed,
         status="completed",
     )
     db.add(analysis)
